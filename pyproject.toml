@@ -1,0 +1,14 @@
+[project]
+name = "aimlab-assistant"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "dxcam>=0.0.5",
+    "mss>=10.1.0",
+    "numpy>=2.4.0",
+    "opencv-python>=4.11.0.86",
+    "pydirectinput>=1.0.4",
+    "pywin32>=311",
+]
