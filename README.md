@@ -53,7 +53,7 @@ main.py              Main loop (open-loop control)
 
 ```bash
 # Clone the repository
-git clone https://github.com/CascadiaX/aimlab-gridshot-with-opencv-python.git
+git clone https://github.com/ruali-dev/aimlab-gridshot-with-opencv-python.git
 cd aimlab-gridshot-with-opencv-python
 
 # Install dependencies with UV

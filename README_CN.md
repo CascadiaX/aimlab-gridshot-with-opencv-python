@@ -53,7 +53,7 @@ main.py              主循环 (开环控制)
 
 ```bash
 # 克隆仓库
-git clone https://github.com/CascadiaX/aimlab-gridshot-with-opencv-python.git
+git clone https://github.com/ruali-dev/aimlab-gridshot-with-opencv-python.git
 cd aimlab-gridshot-with-opencv-python
 
 # 使用 UV 安装依赖
