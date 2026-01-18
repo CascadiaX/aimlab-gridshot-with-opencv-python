@@ -1,8 +1,8 @@
-# 🎯 Aim Lab Gridshot Bot with OpenCV
+# 🎯 Aim Lab Gridshot Automation with OpenCV
 
 [![中文文档](https://img.shields.io/badge/文档-中文版-blue)](README_CN.md)
 
-An automated aim bot for **Aim Lab Gridshot** mode using Python and OpenCV. Achieves high scores through computer vision-based target detection and optimized path planning.
+A computer vision experiment that automates target acquisition in **Aim Lab Gridshot** mode. This project demonstrates real-time object detection, path optimization, and precise mouse control using Python and OpenCV.
 
 ![Example](example.png)
 
@@ -12,18 +12,29 @@ An automated aim bot for **Aim Lab Gridshot** mode using Python and OpenCV. Achi
 
 ## ✨ Features
 
-- **HSV Color Detection** - Detects blue target balls using HSV color space filtering
-- **TSP Path Optimization** - Uses traveling salesman algorithm to find optimal target order
-- **Ghost Filtering** - Prevents re-targeting recently hit balls
+- **HSV Color Detection** - Detects blue target orbs using HSV color space filtering
+- **TSP-Based Path Optimization** - Solves a mini Traveling Salesman Problem to determine the shortest route through visible targets
+- **Ghost Filtering** - Prevents re-targeting recently hit orbs during their fade-out animation
 - **Window Handle Capture** - Uses `dxcam` + `win32gui` for fast, accurate screen capture
-- **Open-Loop Control** - Precise mouse movement with sensitivity calibration
+- **Open-Loop Control** - Precise cursor movement with sensitivity calibration
+
+## 🧠 How It Works
+
+### Target Detection
+The CV pipeline converts each frame to HSV color space and applies a color mask to isolate the cyan target orbs. Contour detection extracts candidate regions, filtered by area and aspect ratio to reject noise.
+
+### Path Planning (TSP)
+With up to 3 targets visible at once, the script solves a mini **Traveling Salesman Problem** using brute-force permutation (feasible for N≤4). Starting from the current cursor position, it evaluates all possible visit orders and selects the path with minimum total Euclidean distance. This ensures optimal target ordering for maximum speed.
+
+### Mouse Control
+The controller uses raw Win32 `mouse_event` calls for low-latency cursor movement. Path interpolation breaks large movements into smaller steps to maintain accuracy at high DPI settings.
 
 ## 🏗️ Architecture
 
 ```
-main.py              Main loop (V24 Open-Loop)
+main.py              Main loop (open-loop control)
 ├── capture.py       Window handle capture (dxcam + win32gui)
-├── vision.py        HSV color detection
+├── vision.py        HSV color detection pipeline
 ├── tracker.py       Multi-target tracker (optional)
 ├── controller.py    Mouse control (ctypes raw input)
 └── config.py        Configuration parameters
@@ -70,8 +81,8 @@ uv run tools/roi_calibrator.py
 uv run main.py
 ```
 
-- Press `F4` to toggle the bot ON/OFF
-- The bot works in the background - just play Gridshot!
+- Press `F4` to toggle the automation ON/OFF
+- The script runs in the background while you play Gridshot
 
 ## ⚙️ Configuration
 
@@ -81,8 +92,8 @@ Edit `config.py` to tune parameters:
 |-----------|-------------|---------|
 | `ROI_WIDTH/HEIGHT` | Capture region size | 800×640 |
 | `SENSITIVITY_MULT` | Mouse sensitivity multiplier | 2.89 |
-| `BALL_COLOR_LOWER/UPPER` | HSV color range for targets | Blue |
-| `GHOST_TIME` | Ignore recently shot targets (ms) | 80 |
+| `BALL_COLOR_LOWER/UPPER` | HSV color range for targets | Cyan |
+| `GHOST_TIME` | Ignore recently hit targets (ms) | 80 |
 
 ## 🛠️ Tools
 
@@ -93,7 +104,7 @@ Edit `config.py` to tune parameters:
 
 ## ⚠️ Disclaimer
 
-This project is for **educational purposes only**. Use of automation tools may violate Aim Lab's Terms of Service. Use at your own risk.
+This project is for **educational and research purposes only**. It serves as a demonstration of computer vision techniques and should not be used to gain unfair advantages in competitive scenarios. Use of automation tools may violate Aim Lab's Terms of Service. Use responsibly and at your own risk.
 
 ## 📄 License
 
