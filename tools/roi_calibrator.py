@@ -1,14 +1,14 @@
-# tools/roi_calibrator.py
+# roi_calibrator.py
 """
-ROI Calibration Tool
+ROI Calibration Tool (Adapted for 640x480 Window Capture)
 
 This tool helps you find the correct ROI_OFFSET_X and ROI_OFFSET_Y values.
 
 How to use:
-1. Run this script with Aim Lab open (in the mode you'll be playing)
+1. Run this script with Aim Lab open (windowed mode 640x480 recommended)
 2. A window will show the captured ROI with a GREEN CROSSHAIR at the center
 3. The GREEN crosshair should align EXACTLY with the game's actual crosshair
-4. Use GLOBAL HOTKEYS (work even when game has focus):
+4. Use GLOBAL HOTKEYS:
    - I/K: Adjust Y offset (up/down)
    - J/L: Adjust X offset (left/right)
 5. Press 'P' to print/save the current offset values
@@ -16,10 +16,19 @@ How to use:
 """
 
 import cv2
-import dxcam
 import numpy as np
 import time
 import ctypes
+
+# Fix DPI Awareness immediately
+try:
+    ctypes.windll.user32.SetProcessDPIAware()
+except Exception:
+    pass
+
+import win32gui
+import config
+from capture import WindowCapture
 
 # Win32 key codes
 VK_I = 0x49
@@ -34,56 +43,57 @@ user32 = ctypes.windll.user32
 def is_key_pressed(vk_code):
     return user32.GetAsyncKeyState(vk_code) & 0x8000
 
-# Initial values (same as config.py)
-SCREEN_WIDTH = 1920
-SCREEN_HEIGHT = 1080
-CENTER_X = SCREEN_WIDTH // 2
-CENTER_Y = SCREEN_HEIGHT // 2
-
-ROI_WIDTH = 800
-ROI_HEIGHT = 640
-
-# Start with no offset
-offset_x = 0
-offset_y = 0
+# Start with offsets from config
+offset_x = config.ROI_OFFSET_X
+offset_y = config.ROI_OFFSET_Y
 
 def main():
     global offset_x, offset_y
     
-    print("=== ROI CALIBRATION TOOL ===")
-    print("GLOBAL HOTKEYS (work even when game has focus):")
-    print("  I/K: Adjust Y offset (up/down)")
-    print("  J/L: Adjust X offset (left/right)")
-    print("  P: Print/Save offset values")
+    print("=== ROI CALIBRATION TOOL (Handler Capture) ===")
+    print(f"Res: {config.SCREEN_WIDTH}x{config.SCREEN_HEIGHT}, ROI: {config.ROI_WIDTH}x{config.ROI_HEIGHT}")
+    print("GLOBAL HOTKEYS:")
+    print("  I/K: Adjust Y offset")
+    print("  J/L: Adjust X offset")
+    print("  P: Print/Save values")
     print("  Q: Quit")
-    print("")
     
-    camera = dxcam.create(output_idx=0, output_color="BGR")
+    # Use WindowCapture (handle-based)
+    camera = WindowCapture(window_title="aimlab_tb", region_size=(config.ROI_WIDTH, config.ROI_HEIGHT))
+    
+    if not camera.find_window():
+        print("Waiting for 'aimlab_tb' window...")
     
     cv2.namedWindow("ROI Calibrator", cv2.WINDOW_NORMAL)
-    cv2.resizeWindow("ROI Calibrator", 800, 640)
+    cv2.resizeWindow("ROI Calibrator", config.ROI_WIDTH, config.ROI_HEIGHT)
     
     # Debounce tracking
     last_key_time = {}
-    debounce = 0.15  # 150ms between key repeats
+    debounce = 0.15
     
     while True:
-        # Calculate ROI position with current offset
-        left = CENTER_X - (ROI_WIDTH // 2) + offset_x
-        top = CENTER_Y - (ROI_HEIGHT // 2) + offset_y
+        # Debug: Check client rect size
+        if camera.hwnd:
+             left, top, right, bottom = win32gui.GetClientRect(camera.hwnd)
+             cw, ch = right-left, bottom-top
+             # print(f"Client Size: {cw}x{ch}") # Optional debug spam
         
-        region = (left, top, left + ROI_WIDTH, top + ROI_HEIGHT)
+        # Apply current offsets to camera
+        camera.user_offset_x = offset_x
+        camera.user_offset_y = offset_y
         
-        frame = camera.grab(region=region)
-        if frame is None:
+        # Grab frame (uses handle + offsets)
+        result = camera.grab()
+        if result is None or result[0] is None:
             time.sleep(0.01)
             continue
         
-        # Draw crosshair at center (this should align with game crosshair)
-        cx = ROI_WIDTH // 2
-        cy = ROI_HEIGHT // 2
+        frame, _, _ = result
         
-        # Draw thick green crosshair
+        # Draw green crosshair at visual center of the ROI
+        cx = config.ROI_WIDTH // 2
+        cy = config.ROI_HEIGHT // 2
+        
         cv2.line(frame, (cx - 50, cy), (cx + 50, cy), (0, 255, 0), 2)
         cv2.line(frame, (cx, cy - 50), (cx, cy + 50), (0, 255, 0), 2)
         cv2.circle(frame, (cx, cy), 10, (0, 255, 0), 2)
@@ -95,11 +105,11 @@ def main():
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
         
         cv2.imshow("ROI Calibrator", frame)
-        cv2.waitKey(1)  # Still needed for OpenCV window to update
+        cv2.waitKey(1)
         
         curr_time = time.time()
         
-        # Global key detection
+        # Key handling
         if is_key_pressed(VK_Q):
             break
             
@@ -114,25 +124,25 @@ def main():
         if is_key_pressed(VK_I):  # UP
             if curr_time - last_key_time.get(VK_I, 0) > debounce:
                 last_key_time[VK_I] = curr_time
-                offset_y -= 5
+                offset_y -= 1  # Fine tune 1px
                 print(f"Offset: X={offset_x}, Y={offset_y}")
                 
         if is_key_pressed(VK_K):  # DOWN
             if curr_time - last_key_time.get(VK_K, 0) > debounce:
                 last_key_time[VK_K] = curr_time
-                offset_y += 5
+                offset_y += 1
                 print(f"Offset: X={offset_x}, Y={offset_y}")
                 
         if is_key_pressed(VK_J):  # LEFT
             if curr_time - last_key_time.get(VK_J, 0) > debounce:
                 last_key_time[VK_J] = curr_time
-                offset_x -= 5
+                offset_x -= 1
                 print(f"Offset: X={offset_x}, Y={offset_y}")
                 
         if is_key_pressed(VK_L):  # RIGHT
             if curr_time - last_key_time.get(VK_L, 0) > debounce:
                 last_key_time[VK_L] = curr_time
-                offset_x += 5
+                offset_x += 1
                 print(f"Offset: X={offset_x}, Y={offset_y}")
     
     cv2.destroyAllWindows()
